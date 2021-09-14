@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+  <head>
+    <script src="{% static '/p5.js' %}"></script>
+    <link rel="stylesheet" type="text/css" href="{% static '/style.css' %}">
+    <meta charset="utf-8" />
+
+  </head>
+  <body>
+   <div style=" text-align: center;"> <h1 >{{type}}</h1></div>
+   <script> 
+      
+   </script>
+  <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+<script>
+    var sx=440,sy=20,l=80;
+      var bb,bg,bh,bm,bn,br,wb,wg,wh,wm,wn,wr;
+      var ci=4,cj=4;
+      var ti,tj,fi,fj;
+      var room_code = '{{room_code}}'
+      var username = '{{username}}'
+      var mytype='{{type}}';
+      console.log(mytype,room_code,username)
+  let socket = new WebSocket('ws://localhost:8000/ws/game/' +room_code)
+
+      var chess=[
+        [4,1,2,3,5,2,1,4],
+        [0,0,0,0,0,0,0,0],
+        [100,100,100,100,100,100,100,100],
+        [100,100,100,100,100,100,100,100],
+        [100,100,100,100,100,100,100,100],
+        [100,100,100,100,100,100,100,100],
+        [6,6,6,6,6,6,6,6],
+        [6+4,6+1,6+2,6+3,6+5,6+2,6+1,6+4]
+      ]
+
+      var paths=[]
+      for (let i = 0; i < 8; i++) {
+        let a=[]  
+        for (let j = 0; j < 8; j++) {
+          a.push(0)
+        }paths.push(a)
+      }
+
+      var run=false;
+      var currentpos=[8,8];
+      var currentchar;
+
+
+
+      function preload() {
+        bb = loadImage('https://mainak-deb.github.io/web-ChessBoard-/Image/b_bore-removebg-preview.png');
+        bg = loadImage('https://mainak-deb.github.io/web-ChessBoard-/Image/b_ghora-removebg-preview.png');
+        bm = loadImage('https://mainak-deb.github.io/web-ChessBoard-/Image/b_hati-removebg-preview.png');
+        bh = loadImage('https://mainak-deb.github.io/web-ChessBoard-/Image/b_montri-removebg-preview.png');
+        bn = loadImage('https://mainak-deb.github.io/web-ChessBoard-/Image/b_nouka-removebg-preview.png');
+        br = loadImage('https://mainak-deb.github.io/web-ChessBoard-/Image/b_raja-removebg-preview.png');
+
+        wb = loadImage('https://mainak-deb.github.io/web-ChessBoard-/Image/w_bore-removebg-preview.png');
+        wg = loadImage('https://mainak-deb.github.io/web-ChessBoard-/Image/w_ghora-removebg-preview.png');
+        wm = loadImage('https://mainak-deb.github.io/web-ChessBoard-/Image/w_hati-removebg-preview.png');
+        wh = loadImage('https://mainak-deb.github.io/web-ChessBoard-/Image/w_montri-removebg-preview.png');
+        wn = loadImage('https://mainak-deb.github.io/web-ChessBoard-/Image/w_nouka-removebg-preview.png');
+        wr = loadImage('https://mainak-deb.github.io/web-ChessBoard-/Image/w_raja-removebg-preview.png');
+      }
+      function setup() {
+        createCanvas(1530,700);
+        print(paths)
+        
+      }
+      function draw() {
+        
+        background(150);
+        if(mytype=="black"){
+          translate(width , height );
+          rotate(PI);
+        }
+        var ghuti=[bb,bg,bh,bm,bn,br,wb,wg,wh,wm,wn,wr];
+        //black and white
+        for (let i = 0; i < 8; i++) {  
+          for (let j = 0; j < 8; j++) {
+            
+            if((i+j)%2==0) {
+              fill(255,255,255);
+            }else {
+              fill(0,0,0);
+            }
+            if((run) && (paths[i][j]==1)){
+              if((i+j)%2==0) {
+                fill(51, 204, 255);
+              }else {
+                fill(1, 27, 112);
+              }
+            }
+            rect(sx+j*l,sy+i*l,l,l);
+            
+            if((chess[i][j]<12)  && !( (i==currentpos[0]) && (j==currentpos[1]))){
+              image(ghuti[chess[i][j]],sx+j*l,sy+i*l,l,l);
+            }
+            
+          }
+        }
+        //green
+        if((((sx<mouseX) && (mouseX<(sx+(l*8))) )&& ( (sy<mouseY) && (mouseY<(sy+(l*8))))) && (!run)){
+          cj= getgrid(mouseX,mouseY)[1];
+          ci=getgrid(mouseX,mouseY)[0];
+          //print(ci,cj)
+          fill(0,255,0);
+          rect(sx+cj*l,sy+ci*l,l,l);
+          
+          if((chess[ci][cj]<12) && !((ci==currentpos[0]) && (cj==currentpos[1]))) {
+            image(ghuti[chess[ci][cj]],sx+cj*l,sy+ci*l,l,l);
+          }
+          
+        }
+        if(run){
+          let dragpos=getgrid(mouseX,mouseY);
+          if(mytype=="black"){
+            image(ghuti[chess[currentpos[0]][currentpos[1]]],2*sx+(l*8)-mouseX-l/2,2*sy+(l*8)-mouseY-l/2,l,l);
+          }
+          else {image(ghuti[chess[currentpos[0]][currentpos[1]]],mouseX-l/2,mouseY-l/2,l,l);}
+          
+        }
+        
+      }
+
+      function searchking(a){
+        for (let i = 0; i < 8; i++) {  
+          for (let j = 0; j < 8; j++) {
+                if(chess[i][j]==a){return false;}
+            }
+          }
+        return true;
+      }
+
+
+      socket.onopen = function (e){
+            console.log('Socket connected')
+        }
+
+        socket.onmessage = function (e){
+            var data = JSON.parse(e.data)
+            console.log(data)
+            chess=data.payload.chess
+            if(mytype=="black"){var iswon=searchking(5)}
+            else if(mytype=="white"){var iswon=searchking(11)}
+            
+              if((data.payload.type=="won") &&(data.payload.player!=mytype)){
+                  //alert("you won")
+                swal("Good job!" , "You won" , "success")
+              }
+            if(data.payload.type=="running"){
+            if(iswon){
+                var data = {
+                  
+                    'player' : mytype,
+                    'chess' : chess,
+                    'type' : 'won'
+                }
+                console.log(data)
+                socket.send(JSON.stringify({
+                    data
+                }))
+                //alert("you loose, better luck next time")
+                swal("Sorry!" , "You lost\nbetter luck next time" , "error")
+            }
+            }
+
+            
+        }
+
+        socket.onclose = function (e){
+            console.log('Socket closed')
+        }
+
+      function swap(i1,j1,i2,j2){
+        var temp=chess[i1][j1];
+        chess[i1][j1]=chess[i2][j2];
+        chess[i2][j2]=temp;
+      }
+
+
+
+      function getgrid(x,y){
+        if(mytype=="black"){
+          return [7-parseInt((y-sy)/l),7-parseInt((x-sx)/l)]
+        }
+        else {return [parseInt((y-sy)/l),parseInt((x-sx)/l)]}
+        
+      }
+
+
+      function mousePressed() {
+          print("pressed")
+          if(((sx<=mouseX)  &&((sx+(l*8))>mouseX)) && ((sy<=mouseY) &&(((sy+(l*8))>mouseY)) )){
+          let pos=getgrid(mouseX,mouseY)
+          console.log("chess",chess[pos[0]][pos[1]])
+          if((chess[pos[0]][pos[1]]!=100) && (type_ghuti(chess[pos[0]][pos[1]])==mytype[0])){
+            if(!run){
+              run=true;
+              currentpos=pos
+              currentchar=chess[pos[0]][pos[1]];
+              if((currentchar%6)==1){
+                ghora(currentpos)
+              }else if((currentchar%6)==2){
+                hati(currentpos)
+              }else if((currentchar%6)==4){
+                nouka(currentpos)
+              }else if((currentchar%6)==3){
+                nouka(currentpos)
+                hati(currentpos)
+              }
+              else if((currentchar%6)==5){
+                raja(currentpos)
+              }else if((currentchar%6)==0){
+                bore(currentpos)
+              }
+            }
+          }else if(chess[pos[0]][pos[1]]!=100){
+            alert("you can't move oponent's player")
+          }
+
+      }
+      }
+      function mouseReleased() {
+        print("released")
+        if(((sx<=mouseX)  &&((sx+(l*8))>mouseX)) && ((sy<=mouseY) &&(((sy+(l*8))>mouseY)) )){
+          let pos=getgrid(mouseX,mouseY)
+          print(chess[pos[1]][pos[0]])
+          if(run){
+            
+            console.log("nowpos",pos,"=",paths[pos[0]][pos[1]])
+            if((!eqpos(pos,currentpos)) && (paths[pos[0]][pos[1]]==1)){  
+              print(chess[pos[0]][pos[1]],chess[currentpos[0]][currentpos[1]])
+              chess[pos[0]][pos[1]]=chess[currentpos[0]][currentpos[1]]
+              chess[currentpos[0]][currentpos[1]]=100
+
+                var data = {
+                    'player' : mytype,
+                    'chess' : chess,
+                    'type' : 'running'
+                }
+                console.log(data)
+                socket.send(JSON.stringify({
+                    data
+                }))
+
+
+              run=false;
+              print(chess[pos[0]][pos[1]],chess[currentpos[0]][currentpos[1]])
+              currentpos=[8,8]
+            }else{
+              run=false;
+              currentpos=[8,8]
+            }
+            reset()
+          }
+        }
+      }
+
+
+
+      function eqpos(a,b){
+          if((a[0]==b[0]) && (a[1]==b[1])){
+              return true
+          }
+          else{
+              return false;
+          }
+      }
+
+      function type_ghuti(v){
+        print(v)
+        if((0<=v) &&(v<6)){
+          return "b"
+        }else if((6<=v) &&(v<12)){
+          return "w"
+        }else if(v==100){
+          return "o"
+        }
+      }
+    </script>
+
+
+
+<script  >
+                function ghora(pos){
+              paths[pos[0]][pos[1]]=1
+              points=[[2,1],[2,-1],[-2,1],[-2,-1],
+                      [1,2],[-1,2],[1,-2],[-1,-2]]
+              for(let i=0;i<points.length;i++){
+                  let a=[pos[0]+points[i][0],pos[1]+points[i][1]]
+                  if(validpos(a[0],a[1])){
+                      if(type_ghuti(chess[pos[0]][pos[1]])!=type_ghuti(chess[a[0]][a[1]])){
+                          console.log(type_ghuti(chess[pos[0]][pos[1]]),type_ghuti(chess[a[0]][a[1]]))
+                          paths[a[0]][a[1]]=1
+                      }
+                  }
+              }
+              print(paths)
+          }
+          function bore(pos){
+              paths[pos[0]][pos[1]]=1
+              if(type_ghuti(chess[pos[0]][pos[1]])=="w"){
+                  points=[[-1,0],[-1,-1],[-1,1]]
+              }else if(type_ghuti(chess[pos[0]][pos[1]])=="b"){
+                  points=[[1,0],[1,-1],[1,1]]
+              }
+              
+              let i=0
+              let a=[pos[0]+points[i][0],pos[1]+points[i][1]];print(a)
+              if(type_ghuti(chess[a[0]][a[1]])=="o"){
+                  paths[a[0]][a[1]]=1; 
+              }
+              for(let j=1;j<points.length;j++){
+                  a=[pos[0]+points[j][0],pos[1]+points[j][1]]
+                  if(type_ghuti(chess[pos[0]][pos[1]])==oppose(type_ghuti(chess[a[0]][a[1]]))) {
+                      paths[a[0]][a[1]]=1; 
+                  }
+              }
+
+
+          }
+
+
+          function nouka(pos){
+              paths[pos[0]][pos[1]]=1
+              points=[[0,1],[0,-1],[1,0],[-1,0]]
+              for(let j=0;j<points.length;j++){
+                  let a=[pos[0],pos[1]];
+                  let touch=true;
+                  while((validpos(a[0],a[1])) && (touch)){  
+                      if(!eqpos(pos,a)){
+                          if((type_ghuti(chess[a[0]][a[1]])=="o") && (touch)){
+                              paths[a[0]][a[1]]=1; 
+                          }
+                          else if((type_ghuti(chess[pos[0]][pos[1]])==oppose(type_ghuti(chess[a[0]][a[1]])))  && (touch)){
+                              paths[a[0]][a[1]]=1; 
+                              touch=false;
+                          }
+                          else if((type_ghuti(chess[pos[0]][pos[1]])==type_ghuti(chess[a[0]][a[1]])) && (touch)){
+                              print(type_ghuti(chess[pos[0]][pos[1]]),type_ghuti(chess[a[0]][a[1]]))
+                              console.log(pos,a)
+                              touch=false;
+                          }
+                          console.log(a,touch)
+                      }
+                      a[0]=a[0]+points[j][0]
+                      a[1]=a[1]+points[j][1]
+
+                  }
+              }
+              
+              console.log("paths",paths)
+          }
+
+          function hati(pos){
+              paths[pos[0]][pos[1]]=1
+              points=[1,-1]
+              for(let i=0;i<points.length;i++){
+                  for(let j=0;j<points.length;j++){
+                      let a=[pos[0],pos[1]];
+                      let touch=true;
+                      while(validpos(a[0],a[1])){            
+                          if(!eqpos(pos,a)){
+                              if((type_ghuti(chess[a[0]][a[1]])=="o") && (touch)){
+                                  paths[a[0]][a[1]]=1; 
+                              }
+                              else if((type_ghuti(chess[pos[0]][pos[1]])==oppose(type_ghuti(chess[a[0]][a[1]])))  && (touch)){
+                                  paths[a[0]][a[1]]=1; 
+                                  touch=false;
+                              }
+                              else if((type_ghuti(chess[pos[0]][pos[1]])==type_ghuti(chess[a[0]][a[1]])) && (touch)){
+                                  print(type_ghuti(chess[pos[0]][pos[1]]),type_ghuti(chess[a[0]][a[1]]))
+                                  console.log(pos,a)
+                                  touch=false;
+                              }
+                              console.log(a,touch)
+                          }
+                          a[0]=a[0]+points[i]
+                          a[1]=a[1]+points[j]
+                      }
+                  }
+              }
+              console.log("paths",paths)
+          }
+
+          function raja(pos){
+              console.clear()
+              paths[pos[0]][pos[1]]=1
+              points=[[0,1],[0,-1],[1,0],[-1,0],[-1,1],[-1,-1],[1,1],[1,-1]]
+              
+              for(let j=0;j<points.length;j++){
+                  let a=[pos[0]+points[j][0],pos[1]+points[j][1]];print(a)
+                  if((!eqpos(pos,a)) && (validpos(a[0],a[1]))){           
+                      if(type_ghuti(chess[a[0]][a[1]])=="o"){
+                          paths[a[0]][a[1]]=1; 
+                      }else if((type_ghuti(chess[pos[0]][pos[1]])==oppose(type_ghuti(chess[a[0]][a[1]])))){
+                          paths[a[0]][a[1]]=1; 
+                          touch=false;
+                      }else if((type_ghuti(chess[pos[0]][pos[1]])==type_ghuti(chess[a[0]][a[1]]))){
+                          print(type_ghuti(chess[pos[0]][pos[1]]),type_ghuti(chess[a[0]][a[1]]))
+                          console.log(pos,a)
+                          touch=false;
+                      }
+                      
+                  }
+              }
+          }
+
+
+          function reset(){
+              for (let i = 0; i < 8; i++) {
+                  for (let j = 0; j < 8; j++) {
+                  paths[i][j]=0;
+                  }
+              }
+          }
+
+
+          function validpos(x,y){
+              if(((0<=x) && (x<8)) &&( (0<=y) && (y<8))){
+                      return true
+              }else{
+                  return false
+              }
+          }
+          function oppose(a){
+              print("op",a)
+              if(a=="w") {return "b"}
+              else if(a=="b") {return "w"}
+              else{return "x"}
+          }
+</script>
+   
+  </body>
+</html>
